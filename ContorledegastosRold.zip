@@ -1,0 +1,244 @@
+import java.io.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+// Classe abstrata Despesa
+abstract class Despesa {
+    protected String descricao;
+    protected double valor;
+    protected String dataVencimento;
+    protected String categoria;
+
+    public Despesa(String descricao, double valor, String dataVencimento, String categoria) {
+        this.descricao = descricao;
+        this.valor = valor;
+        this.dataVencimento = dataVencimento;
+        this.categoria = categoria;
+    }
+
+    public abstract void pagar();
+}
+
+// Classe concreta DespesaTransporte
+class DespesaTransporte extends Despesa {
+    public DespesaTransporte(String descricao, double valor, String dataVencimento) {
+        super(descricao, valor, dataVencimento, "Transporte");
+    }
+
+    @Override
+    public void pagar() {
+        System.out.println("Despesa de transporte no valor de R$" + valor + " foi paga.");
+    }
+}
+
+// Classe concreta DespesaAlimentacao
+class DespesaAlimentacao extends Despesa {
+    public DespesaAlimentacao(String descricao, double valor, String dataVencimento) {
+        super(descricao, valor, dataVencimento, "Alimentação");
+    }
+
+    @Override
+    public void pagar() {
+        System.out.println("Despesa de alimentação no valor de R$" + valor + " foi paga.");
+    }
+}
+
+// Classe Usuario com criptografia
+class Usuario {
+    private String nome;
+    private String login;
+    private String senhaCriptografada;
+
+    public Usuario(String nome, String login, String senha) {
+        this.nome = nome;
+        this.login = login;
+        this.senhaCriptografada = criptografarSenha(senha);
+    }
+
+    private String criptografarSenha(String senha) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(senha.getBytes());
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public boolean validarSenha(String senha) {
+        return senhaCriptografada.equals(criptografarSenha(senha));
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public String getLogin() {
+        return login;
+    }
+
+    public String getSenhaCriptografada() {
+        return senhaCriptografada;
+    }
+}
+
+// Classe principal para o menu
+public class SistemaControleDespesas {
+    private static List<Despesa> despesas = new ArrayList<>();
+    private static List<Usuario> usuarios = new ArrayList<>();
+    private static Scanner scanner = new Scanner(System.in);
+
+    // Funções de manipulação de despesas
+    private static void salvarDespesa(Despesa despesa) {
+        try (FileWriter writer = new FileWriter("despesas.txt", true)) {
+            writer.write(despesa.descricao + ";" + despesa.valor + ";" + despesa.dataVencimento + ";" + despesa.categoria + "\n");
+        } catch (IOException e) {
+            System.out.println("Erro ao salvar despesa: " + e.getMessage());
+        }
+    }
+
+    private static List<Despesa> carregarDespesas() {
+        List<Despesa> listaDespesas = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader("despesas.txt"))) {
+            String linha;
+            while ((linha = reader.readLine()) != null) {
+                String[] dados = linha.split(";");
+                String descricao = dados[0];
+                double valor = Double.parseDouble(dados[1]);
+                String dataVencimento = dados[2];
+                String categoria = dados[3];
+
+                if (categoria.equals("Transporte")) {
+                    listaDespesas.add(new DespesaTransporte(descricao, valor, dataVencimento));
+                } else if (categoria.equals("Alimentação")) {
+                    listaDespesas.add(new DespesaAlimentacao(descricao, valor, dataVencimento));
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Erro ao carregar despesas: " + e.getMessage());
+        }
+        return listaDespesas;
+    }
+
+    // Funções de manipulação de usuários
+    private static void salvarUsuario(Usuario usuario) {
+        try (FileWriter writer = new FileWriter("usuarios.txt", true)) {
+            writer.write(usuario.getNome() + ";" + usuario.getLogin() + ";" + usuario.getSenhaCriptografada() + "\n");
+        } catch (IOException e) {
+            System.out.println("Erro ao salvar usuário: " + e.getMessage());
+        }
+    }
+
+    private static List<Usuario> carregarUsuarios() {
+        List<Usuario> listaUsuarios = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader("usuarios.txt"))) {
+            String linha;
+            while ((linha = reader.readLine()) != null) {
+                String[] dados = linha.split(";");
+                String nome = dados[0];
+                String login = dados[1];
+                String senhaCriptografada = dados[2];
+                Usuario usuario = new Usuario(nome, login, senhaCriptografada);
+                listaUsuarios.add(usuario);
+            }
+        } catch (IOException e) {
+            System.out.println("Erro ao carregar usuários: " + e.getMessage());
+        }
+        return listaUsuarios;
+    }
+
+    // Menu principal
+    public static void menuPrincipal() {
+        while (true) {
+            System.out.println("\nSistema de Controle de Despesas");
+            System.out.println("1. Entrar Despesa");
+            System.out.println("2. Anotar Pagamento");
+            System.out.println("3. Listar Despesas");
+            System.out.println("4. Gerenciar Tipos de Despesa");
+            System.out.println("5. Gerenciar Usuários");
+            System.out.println("6. Sair");
+
+            String opcao = scanner.nextLine();
+
+            switch (opcao) {
+                case "1":
+                    System.out.print("Descrição da despesa: ");
+                    String descricao = scanner.nextLine();
+                    System.out.print("Valor da despesa: ");
+                    double valor = Double.parseDouble(scanner.nextLine());
+                    System.out.print("Data de vencimento (dd/mm/aaaa): ");
+                    String dataVencimento = scanner.nextLine();
+                    System.out.print("Categoria (Transporte/Alimentação): ");
+                    String categoria = scanner.nextLine();
+
+                    Despesa despesa;
+                    if (categoria.equalsIgnoreCase("Transporte")) {
+                        despesa = new DespesaTransporte(descricao, valor, dataVencimento);
+                    } else if (categoria.equalsIgnoreCase("Alimentação")) {
+                        despesa = new DespesaAlimentacao(descricao, valor, dataVencimento);
+                    } else {
+                        System.out.println("Categoria inválida.");
+                        continue;
+                    }
+
+                    salvarDespesa(despesa);
+                    System.out.println("Despesa salva com sucesso!");
+                    break;
+
+                case "2":
+                    despesas = carregarDespesas();
+                    if (!despesas.isEmpty()) {
+                        for (int i = 0; i < despesas.size(); i++) {
+                            Despesa d = despesas.get(i);
+                            System.out.println((i + 1) + ". " + d.descricao + " - " + d.valor + " - " + d.categoria);
+                        }
+                        System.out.print("Escolha a despesa a ser paga: ");
+                        int escolha = Integer.parseInt(scanner.nextLine());
+                        despesas.get(escolha - 1).pagar();
+                    } else {
+                        System.out.println("Nenhuma despesa encontrada.");
+                    }
+                    break;
+
+                case "3":
+                    despesas = carregarDespesas();
+                    if (!despesas.isEmpty()) {
+                        for (Despesa d : despesas) {
+                            System.out.println(d.descricao + " - " + d.valor + " - " + d.categoria);
+                        }
+                    } else {
+                        System.out.println("Nenhuma despesa encontrada.");
+                    }
+                    break;
+
+                case "4":
+                    System.out.println("Gerenciamento de Tipos de Despesa ainda não implementado.");
+                    break;
+
+                case "5":
+                    System.out.println("Gerenciamento de Usuários ainda não implementado.");
+                    break;
+
+                case "6":
+                    System.out.println("Saindo do sistema...");
+                    return;
+
+                default:
+                    System.out.println("Opção inválida. Tente novamente.");
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        menuPrincipal();
+    }
+}
